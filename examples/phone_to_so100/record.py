@@ -53,7 +53,7 @@ HF_REPO_ID = "<hf_username>/<dataset_repo_id>"
 # Create the robot and teleoperator configurations
 camera_config = {"front": OpenCVCameraConfig(index_or_path=0, width=640, height=480, fps=FPS)}
 robot_config = SO100FollowerConfig(
-    port="/dev/tty.usbmodem5A460814411",
+    port="/dev/ttyACM1",
     id="my_awesome_follower_arm",
     cameras=camera_config,
     use_degrees=True,

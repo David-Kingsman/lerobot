@@ -170,9 +170,9 @@ class ImagePreprocessingConfig:
 class RewardClassifierConfig:
     """Configuration for reward classification."""
 
-    pretrained_path: str | None = None
-    success_threshold: float = 0.5
-    success_reward: float = 1.0
+    pretrained_path: str | None = None # Pretrained reward classifier path
+    success_threshold: float = 0.5 # Success threshold
+    success_reward: float = 1.0 # Success reward
 
 
 @dataclass
@@ -189,42 +189,42 @@ class InverseKinematicsConfig:
 class ObservationConfig:
     """Configuration for observation processing."""
 
-    add_joint_velocity_to_observation: bool = False
-    add_current_to_observation: bool = False
-    add_ee_pose_to_observation: bool = False
-    display_cameras: bool = False
+    add_joint_velocity_to_observation: bool = False    # Add joint velocity to observation
+    add_current_to_observation: bool = False    # Add current to observation
+    add_ee_pose_to_observation: bool = False    # Add end effector pose to observation
+    display_cameras: bool = False    # Display cameras
 
 
 @dataclass
 class GripperConfig:
     """Configuration for gripper control and penalties."""
 
-    use_gripper: bool = True
-    gripper_penalty: float = 0.0
-    gripper_penalty_in_reward: bool = False
+    use_gripper: bool = True    # Use gripper
+    gripper_penalty: float = 0.0    # Gripper penalty
+    gripper_penalty_in_reward: bool = False    # Gripper penalty in reward
 
 
 @dataclass
 class ResetConfig:
     """Configuration for environment reset behavior."""
 
-    fixed_reset_joint_positions: Any | None = None
-    reset_time_s: float = 5.0
-    control_time_s: float = 20.0
-    terminate_on_success: bool = True
+    fixed_reset_joint_positions: Any | None = None    # Fixed reset joint positions
+    reset_time_s: float = 5.0    # Reset time
+    control_time_s: float = 20.0    # Control time
+    terminate_on_success: bool = True    # Terminate on success
 
 
 @dataclass
 class HILSerlProcessorConfig:
     """Configuration for environment processing pipeline."""
 
-    control_mode: str = "gamepad"
-    observation: ObservationConfig | None = None
-    image_preprocessing: ImagePreprocessingConfig | None = None
-    gripper: GripperConfig | None = None
-    reset: ResetConfig | None = None
-    inverse_kinematics: InverseKinematicsConfig | None = None
-    reward_classifier: RewardClassifierConfig | None = None
+    control_mode: str = "gamepad"   # Control mode
+    observation: ObservationConfig | None = None # Observation processing settings
+    image_preprocessing: ImagePreprocessingConfig | None = None # Image crop/resize settings
+    gripper: GripperConfig | None = None    # Gripper control and penalty settings
+    reset: ResetConfig | None = None    # Environment reset settings
+    inverse_kinematics: InverseKinematicsConfig | None = None    # Inverse kinematics settings
+    reward_classifier: RewardClassifierConfig | None = None    # Reward classification settings
     max_gripper_pos: float | None = 100.0
 
 

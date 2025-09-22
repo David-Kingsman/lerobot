@@ -83,22 +83,22 @@ logging.basicConfig(level=logging.INFO)
 class DatasetConfig:
     """Configuration for dataset creation and management."""
 
-    repo_id: str
-    task: str
-    root: str | None = None
-    num_episodes_to_record: int = 5
-    replay_episode: int | None = None
-    push_to_hub: bool = False
+    repo_id: str    # LeRobot dataset repository ID
+    task: str    # Task identifier
+    root: str | None = None    # Local dataset root directory
+    num_episodes_to_record: int = 5    # Number of episodes for recording
+    replay_episode: int | None = None    # Episode index for replay
+    push_to_hub: bool = False    # Whether to push datasets to Hub
 
 
 @dataclass
 class GymManipulatorConfig:
     """Main configuration for gym manipulator environment."""
 
-    env: HILSerlRobotEnvConfig
-    dataset: DatasetConfig
-    mode: str | None = None  # Either "record", "replay", None
-    device: str = "cpu"
+    env: HILSerlRobotEnvConfig    # Environment configuration (nested)
+    dataset: DatasetConfig          # Dataset recording/replay configuration (nested)
+    mode: str | None = None  # Either "record", "replay", None （for training）
+    device: str = "cpu"  # Compute device
 
 
 def reset_follower_position(robot_arm: Robot, target_position: np.ndarray) -> None:
@@ -469,6 +469,10 @@ def make_processors(
 
     # Replace InverseKinematicsProcessor with new kinematic processors
     if cfg.processor.inverse_kinematics is not None and kinematics_solver is not None:
+        print(f"🔧 Setting up inverse kinematics pipeline...")
+        print(f"   Motor names: {motor_names}")
+        print(f"   Kinematics solver: {type(kinematics_solver)}")
+        
         # Add EE bounds and safety processor
         inverse_kinematics_steps = [
             MapTensorToDeltaActionDictStep(
@@ -496,6 +500,11 @@ def make_processors(
         ]
         action_pipeline_steps.extend(inverse_kinematics_steps)
         action_pipeline_steps.append(RobotActionToPolicyActionProcessorStep(motor_names=motor_names))
+        print(f"✅ Added {len(inverse_kinematics_steps)} inverse kinematics steps")
+    else:
+        print(f"❌ Inverse kinematics not configured!")
+        print(f"   cfg.processor.inverse_kinematics: {cfg.processor.inverse_kinematics}")
+        print(f"   kinematics_solver: {kinematics_solver}")
 
     return DataProcessorPipeline(
         steps=env_pipeline_steps, to_transition=identity_transition, to_output=identity_transition
@@ -598,7 +607,16 @@ def control_loop(
 
     dataset = None
     if cfg.mode == "record":
-        action_features = teleop_device.action_features
+        if teleop_device is not None:
+            action_features = teleop_device.action_features
+        else:
+            # For gym_hil environment, get action features from environment action space
+            action_space = env.action_space
+            action_features = {
+                "dtype": "float32",
+                "shape": action_space.shape,
+                "names": None,
+            }
         features = {
             "action": action_features,
             "next.reward": {"dtype": "float32", "shape": (1,), "names": None},

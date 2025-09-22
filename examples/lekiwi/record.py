@@ -35,7 +35,7 @@ HF_REPO_ID = "<hf_username>/<dataset_repo_id>"
 
 # Create the robot and teleoperator configurations
 robot_config = LeKiwiClientConfig(remote_ip="172.18.134.136", id="lekiwi")
-leader_arm_config = SO100LeaderConfig(port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm")
+leader_arm_config = SO100LeaderConfig(port="/dev/ttyACM0", id="my_awesome_leader_arm")
 keyboard_config = KeyboardTeleopConfig()
 
 # Initialize the robot and teleoperator

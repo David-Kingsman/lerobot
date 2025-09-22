@@ -55,7 +55,7 @@ HF_DATASET_ID = "<hf_username>/<dataset_repo_id>"
 # Create the robot configuration & robot
 camera_config = {"front": OpenCVCameraConfig(index_or_path=0, width=640, height=480, fps=FPS)}
 robot_config = SO100FollowerConfig(
-    port="/dev/tty.usbmodem58760434471",
+    port="/dev/ttyACM1",
     id="my_awesome_follower_arm",
     cameras=camera_config,
     use_degrees=True,

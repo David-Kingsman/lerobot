@@ -36,7 +36,7 @@ HF_REPO_ID = "<hf_username>/<dataset_repo_id>"
 
 # Initialize the robot config
 robot_config = SO100FollowerConfig(
-    port="/dev/tty.usbmodem5A460814411", id="my_awesome_follower_arm", use_degrees=True
+    port="/dev/ttyACM1", id="my_awesome_follower_arm", use_degrees=True
 )
 
 # Initialize the robot
