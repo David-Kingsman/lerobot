@@ -99,7 +99,9 @@ class MapDeltaActionToRobotActionStep(RobotActionProcessorStep):
         delta_x = action.pop("delta_x")
         delta_y = action.pop("delta_y")
         delta_z = action.pop("delta_z")
-        gripper = action.pop("gripper")
+        # Make gripper optional；only for ufactory lite6 without gripper
+        has_gripper = "gripper" in action
+        gripper = action.pop("gripper", 0.0)
 
         # Determine if the teleoperator is actively providing input
         # Consider enabled if any significant movement delta is detected
@@ -126,8 +128,9 @@ class MapDeltaActionToRobotActionStep(RobotActionProcessorStep):
             "target_wx": target_wx,
             "target_wy": target_wy,
             "target_wz": target_wz,
-            "gripper_vel": float(gripper),
         }
+        if has_gripper:
+            action["gripper_vel"] = float(gripper)
 
         return action
 
@@ -143,3 +146,5 @@ class MapDeltaActionToRobotActionStep(RobotActionProcessorStep):
             )
 
         return features
+
+

@@ -494,17 +494,14 @@ def make_processors(
             EEBoundsAndSafety(
                 end_effector_bounds=cfg.processor.inverse_kinematics.end_effector_bounds,
             ),
-            # GripperVelocityToJoint(
-            #     clip_max=cfg.processor.max_gripper_pos,
-            #     speed_factor=1.0,
-            #     discrete_gripper=True,
-            # ),
-            # InverseKinematicsRLStep(
-            #     kinematics=kinematics_solver, motor_names=motor_names, initial_guess_current_joints=False
-            # ),
-            InverseKinematicsEEToJoints(
-                kinematics=kinematics_solver, motor_names=motor_names, initial_guess_current_joints=True
-    ),
+            GripperVelocityToJoint(
+                clip_max=cfg.processor.max_gripper_pos,
+                speed_factor=1.0,
+                discrete_gripper=True,
+            ),
+            InverseKinematicsRLStep(
+                kinematics=kinematics_solver, motor_names=motor_names, initial_guess_current_joints=False
+            ),
         ]
         action_pipeline_steps.extend(inverse_kinematics_steps)
         action_pipeline_steps.append(RobotActionToPolicyActionProcessorStep(motor_names=motor_names))

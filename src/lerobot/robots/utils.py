@@ -61,10 +61,11 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .reachy2 import Reachy2Robot
 
         return Reachy2Robot(config)
-    elif config.type == "mock_robot":
-        from tests.mocks.mock_robot import MockRobot
+    elif config.type == "ufactory_lite6":
+        from .ufactory_lite6 import UFactoryLite6
 
-        return MockRobot(config)
+        return UFactoryLite6(config)
+
     else:
         raise ValueError(config.type)
 

@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import numpy as np
+import io
+import contextlib
 
 
 class RobotKinematics:
@@ -40,7 +42,11 @@ class RobotKinematics:
                 "Please install the optional dependencies of `kinematics` in the package."
             ) from e
 
-        self.robot = placo.RobotWrapper(urdf_path)
+        # Some URDFs print warnings (e.g., neutral-position self collisions) to stdout/stderr during loading.
+        # Silence them to avoid confusing users; functional behavior is unchanged.
+        _sink_out, _sink_err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(_sink_out), contextlib.redirect_stderr(_sink_err):
+            self.robot = placo.RobotWrapper(urdf_path)
         self.solver = placo.KinematicsSolver(self.robot)
         self.solver.mask_fbase(True)  # Fix the base
 
@@ -51,6 +57,17 @@ class RobotKinematics:
 
         # Initialize frame task for IK
         self.tip_frame = self.solver.add_frame_task(self.target_frame_name, np.eye(4))
+
+    def set_initial_joints_rad(self, joint_pos_rad: list[float] | np.ndarray) -> None:
+        """Set the internal robot joint state (in radians) before any FK/IK.
+
+        This is useful to initialize the kinematics at a known-safe configuration
+        such as the environment's fixed reset joint positions.
+        """
+        num = min(len(self.joint_names), len(joint_pos_rad))
+        for i in range(num):
+            self.robot.set_joint(self.joint_names[i], float(joint_pos_rad[i]))
+        self.robot.update_kinematics()
 
     def forward_kinematics(self, joint_pos_deg):
         """

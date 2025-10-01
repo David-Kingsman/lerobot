@@ -415,7 +415,7 @@ def compute_forward_kinematics_joints_to_ee(
     t = kinematics.forward_kinematics(q)
     pos = t[:3, 3]
     tw = Rotation.from_matrix(t[:3, :3]).as_rotvec()
-    gripper_pos = joints["gripper.pos"]
+    gripper_pos = joints.get("gripper.pos", 0.0)  # Default to 0.0 if no gripper
     for n in motor_names:
         joints.pop(f"{n}.pos")
     joints["ee.x"] = float(pos[0])
