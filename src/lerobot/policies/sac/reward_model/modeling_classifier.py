@@ -205,9 +205,20 @@ class Classifier(PreTrainedPolicy):
         with torch.no_grad():
             if self.is_cnn:
                 # The HF ResNet applies pooling internally
+                # Ensure input tensor and encoder weights are on the same device to avoid CPU/CUDA mismatch
+                try:
+                    device = next(self.encoders[image_key].parameters()).device
+                    x = x.to(device, non_blocking=True)
+                except Exception:
+                    pass
                 outputs = self.encoders[image_key](x)
                 return outputs
             else:  # Transformer models
+                try:
+                    device = next(self.encoder.parameters()).device
+                    x = x.to(device, non_blocking=True)
+                except Exception:
+                    pass
                 outputs = self.encoder(x)
                 return outputs.last_hidden_state[:, 0, :]
 
@@ -269,8 +280,8 @@ class Classifier(PreTrainedPolicy):
     def predict_reward(self, batch, threshold=0.5):
         """Eval method. Returns predicted reward with the decision threshold as argument."""
         # Check for both OBS_IMAGE and OBS_IMAGES prefixes
-        batch = self.normalize_inputs(batch)
-        batch = self.normalize_targets(batch)
+        # batch = self.normalize_inputs(batch)
+        # batch = self.normalize_targets(batch)
 
         # Extract images from batch dict
         images = [batch[key] for key in self.config.input_features if key.startswith(OBS_IMAGE)]

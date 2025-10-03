@@ -24,6 +24,7 @@ from lerobot.robots import (  # noqa: F401
     RobotConfig,
     make_robot_from_config,
     so100_follower,
+    ufactory_lite6,
 )
 from lerobot.scripts.rl.gym_manipulator import make_robot_env
 from lerobot.teleoperators import (
