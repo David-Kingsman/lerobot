@@ -56,6 +56,16 @@ lerobot-record \
   --dataset.num_episodes=25 \
   --dataset.single_task="Grab and handover the red cube to the other arm"
 ```
+
+
+
+python -m lerobot.record \
+    --dataset.repo_id=lukicdarkoo/eval_pick_plazma \
+    --dataset.single_task="Pick plazma" \
+    --robot.type=xarm_end_effector \
+    --robot.cameras="{laptop: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}}" \
+    --policy.path=/home/lukic/hf/models/pick_broken_plazma/checkpoints/last/pretrained_model \
+    --robot.id=black
 """
 
 import logging
@@ -97,6 +107,7 @@ from lerobot.robots import (  # noqa: F401
     make_robot_from_config,
     so100_follower,
     so101_follower,
+    xarm
 )
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
@@ -107,6 +118,7 @@ from lerobot.teleoperators import (  # noqa: F401
     make_teleoperator_from_config,
     so100_leader,
     so101_leader,
+    spacemouse
 )
 from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop
 from lerobot.utils.control_utils import (

@@ -47,6 +47,15 @@ lerobot-teleoperate \
   --teleop.right_arm_port=/dev/tty.usbmodem5A460826981 \
   --teleop.id=bimanual_leader \
   --display_data=true
+
+
+  python -m lerobot.teleoperate \
+    --robot.type=xarm_end_effector \
+    --robot.id=black \
+    --teleop.type=spacemouse
+
+  python -m lerobot.teleoperate \
+    --robot.type=webots_xarm_end_effector \
 ```
 
 """
