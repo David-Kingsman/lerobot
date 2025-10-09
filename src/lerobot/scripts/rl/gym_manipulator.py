@@ -57,6 +57,7 @@ from lerobot.robots import (  # noqa: F401
     make_robot_from_config,
     so100_follower,
     ufactory_lite6,
+    xarm
 )
 from lerobot.robots.robot import Robot
 from lerobot.robots.so100_follower.robot_kinematic_processor import (
