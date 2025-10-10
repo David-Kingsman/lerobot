@@ -20,21 +20,15 @@ from typing import Any
 
 import numpy as np
 
-from ..teleoperator import Teleoperator
-from .configuration_spacemouse import SpacemouseTeleopConfig
+from lerobot.teleoperators.teleoperator import Teleoperator
+from lerobot.teleoperators.spacemouse.configuration_spacemouse import SpacemouseTeleopConfig
 
+import pyspacemouse
 
 class GripperAction(IntEnum):
     CLOSE = 0
     STAY = 1
     OPEN = 2
-
-
-gripper_action_map = {
-    "close": GripperAction.CLOSE.value,
-    "open": GripperAction.OPEN.value,
-    "stay": GripperAction.STAY.value,
-}
 
 
 class SpacemouseTeleop(Teleoperator):
@@ -50,19 +44,6 @@ class SpacemouseTeleop(Teleoperator):
         super().__init__(config)
         self.config = config
         self.robot_type = config.type
-
-        # Attempt to import the real SpaceMouse driver. Fallback to the mock driver if requested or import fails.
-        self.sm = None
-        if not config.mock:
-            try:
-                import pyspacemouse
-                self.sm = pyspacemouse
-            except ImportError as e:
-                print("Warning: pyspacemouse could not be imported (", e, "). Falling back to mock driver.")
-        # If the real driver couldn't be loaded or mock explicitly requested, use the mock implementation
-        if self.sm is None:
-            from lerobot.common.teleoperators.spacemouse.driver_spacemouse import SpaceMouseMock as _Mock
-            self.sm = _Mock()
 
         self._connected = False
         # Gripper toggle state: assume starts OPEN
@@ -95,27 +76,7 @@ class SpacemouseTeleop(Teleoperator):
 
     def connect(self) -> None:
         """Connect to the SpaceMouse device (real or mock)."""
-        if self.sm is None:
-            raise RuntimeError("SpaceMouse driver not initialized.")
-
-        # Map short device aliases to full names for convenience
-        device_alias: str | None
-        if self.config.device in {"e", "E"}:
-            device_alias = "SpacePilot Enterprise"
-        elif self.config.device in {"p", "P"}:
-            device_alias = "SpaceMouse Pro"
-        else:
-            # Treat "", "default", or None as auto-detect (i.e., no device argument)
-            if not self.config.device or self.config.device.lower() in {"default", "auto"}:
-                device_alias = None
-            else:
-                device_alias = self.config.device
-
-        # Call open with or without explicit device name depending on alias resolution
-        if device_alias is None:
-            self._connected = bool(self.sm.open())
-        else:
-            self._connected = bool(self.sm.open(device=device_alias))
+        self._connected = bool(pyspacemouse.open())
 
         # Start background reader to avoid piling up driver messages (reduces perceived latency)
         if self._connected:
@@ -123,6 +84,7 @@ class SpacemouseTeleop(Teleoperator):
 
             def _reader_loop():
                 """Continuously poll the driver so its internal queue stays empty.
+
                 We only keep the most recent state which `get_action` then consumes. This
                 prevents buildup when the driver polls faster than the main control loop
                 (e.g. teleoperate.py's ≈60 Hz loop vs. SpaceMouse ≈125 Hz updates).
@@ -130,7 +92,7 @@ class SpacemouseTeleop(Teleoperator):
 
                 while not self._stop_reader:
                     try:
-                        self._latest_state = self.sm.read()
+                        self._latest_state = pyspacemouse.read()
                     except Exception:
                         # In case device is unplugged mid-run; exit thread gracefully
                         break
@@ -145,15 +107,20 @@ class SpacemouseTeleop(Teleoperator):
 
         # Prefer the state produced by the background reader (most recent),
         # fall back to direct read if thread hasn't produced anything yet.
-        state = self._latest_state if self._latest_state is not None else self.sm.read()
+        state = self._latest_state if self._latest_state is not None else pyspacemouse.read()
+
+        # Print raw SpaceMouse values
+        print(f"SpaceMouse Raw: x={state.x:.3f}, y={state.y:.3f}, z={state.z:.3f}, roll={state.roll:.3f}, pitch={state.pitch:.3f}, yaw={state.yaw:.3f}")
+        if hasattr(state, 'buttons'):
+            print(f"SpaceMouse Buttons: {state.buttons}")
 
         deltas = [
-            state.y,
-            -state.x,
-            state.z,
+            state.y ** 3,
+            -state.x ** 3,
+            state.z ** 3,
             state.roll,
-            -state.pitch,
-            state.yaw,
+            state.pitch,
+            -state.yaw ** 3,
         ]
 
         # Clamp, apply deadzone & scaling
@@ -192,10 +159,8 @@ class SpacemouseTeleop(Teleoperator):
         # Assumption: the physical gripper starts in the OPEN state when the teleop script boots.
         # Each button press switches the command between OPEN and CLOSE accordingly.
         if self.config.use_gripper and hasattr(state, "buttons") and len(state.buttons) >= 2:
-            # Rising-edge detection on right button (index 1) to toggle gripper state
             btn = state.buttons[1]
             if btn and not self._prev_button_state:
-                # Toggle the stored gripper state
                 self._gripper_state = (
                     GripperAction.CLOSE.value
                     if self._gripper_state == GripperAction.OPEN.value
@@ -204,6 +169,10 @@ class SpacemouseTeleop(Teleoperator):
             self._prev_button_state = btn
 
             action_dict["gripper"] = self._gripper_state
+
+            home_btn = state.buttons[0]
+            if home_btn:
+                action_dict["home"] = True
 
         return action_dict
 
@@ -242,30 +211,50 @@ class SpacemouseTeleop(Teleoperator):
         # Spacemouse doesn't support feedback
         pass
 
+    def get_teleop_events(self) -> dict[str, Any]:
+        """
+        Get extra control events from the spacemouse such as intervention status,
+        episode termination, success indicators, etc.
 
-if __name__ == "__main__":
-    # Quick test: create a configuration and read a few actions (auto-detect device)
-    config = SpacemouseTeleopConfig(use_gripper=True, device="")
+        Returns:
+            Dictionary containing:
+                - is_intervention: bool - Whether human is currently intervening
+                - terminate_episode: bool - Whether to terminate the current episode
+                - success: bool - Whether the episode was successful
+                - rerecord_episode: bool - Whether to rerecord the episode
+        """
+        if not self._connected:
+            return {
+                "is_intervention": False,
+                "terminate_episode": False,
+                "success": False,
+                "rerecord_episode": False,
+            }
 
-    # Initialize the SpacemouseTeleop
-    teleop = SpacemouseTeleop(config)
+        # Check if spacemouse is being moved (intervention detection)
+        state = self.get_action()
+        is_intervention = False
+        
+        # Detect intervention if any delta values are non-zero
+        if isinstance(state, dict):
+            delta_values = [
+                abs(state.get("delta_x", 0.0)),
+                abs(state.get("delta_y", 0.0)), 
+                abs(state.get("delta_z", 0.0)),
+                abs(state.get("delta_roll", 0.0)),
+                abs(state.get("delta_pitch", 0.0)),
+                abs(state.get("delta_yaw", 0.0))
+            ]
+            # Consider intervention active if any delta is above threshold
+            is_intervention = any(delta > 0.001 for delta in delta_values)
+            
+            # Debug: print intervention status
+            if is_intervention:
+                print(f"🎯 INTERVENTION DETECTED! Delta values: {[f'{d:.4f}' for d in delta_values]}")
 
-    # Connect to the spacemouse
-    teleop.connect()
-
-    # Check if connected
-    if teleop.is_connected():
-        print("Connected to spacemouse.")
-
-        import time
-        print("Streaming actions…  Press Ctrl+C to stop.")
-        try:
-            while True:
-                action = teleop.get_action()
-                print("Action:", action)
-        except KeyboardInterrupt:
-            print("Stopping.")
-        finally:
-            teleop.disconnect()
-    else:
-        print("Failed to connect to spacemouse.")
+        return {
+            "is_intervention": is_intervention,
+            "terminate_episode": False,
+            "success": False,
+            "rerecord_episode": False,
+        }
