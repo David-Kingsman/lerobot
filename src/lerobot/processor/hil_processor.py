@@ -159,7 +159,27 @@ class AddTeleopEventsAsInfoStep(InfoProcessorStep):
         new_info = dict(info)
 
         teleop_events = self.teleop_device.get_teleop_events()
-        new_info.update(teleop_events)
+        
+        # Debug: print teleop events
+        if any(teleop_events.values()):
+            print(f"📡 TELEOP EVENTS: {teleop_events}")
+        
+        # Convert string keys to enum keys for consistency
+        from lerobot.teleoperators.utils import TeleopEvents
+        converted_events = {}
+        for key, value in teleop_events.items():
+            if key == "is_intervention":
+                converted_events[TeleopEvents.IS_INTERVENTION] = value
+            elif key == "terminate_episode":
+                converted_events[TeleopEvents.TERMINATE_EPISODE] = value
+            elif key == "success":
+                converted_events[TeleopEvents.SUCCESS] = value
+            elif key == "rerecord_episode":
+                converted_events[TeleopEvents.RERECORD_EPISODE] = value
+            else:
+                converted_events[key] = value
+        
+        new_info.update(converted_events)
         return new_info
 
     def transform_features(
@@ -432,6 +452,13 @@ class InterventionActionProcessorStep(ProcessorStep):
         terminate_episode = info.get(TeleopEvents.TERMINATE_EPISODE, False)
         success = info.get(TeleopEvents.SUCCESS, False)
         rerecord_episode = info.get(TeleopEvents.RERECORD_EPISODE, False)
+        
+        # Debug: print what we received
+        print(f"🔍 INTERVENTION DEBUG:")
+        print(f"  - info keys: {list(info.keys())}")
+        print(f"  - is_intervention: {is_intervention} (type: {type(is_intervention)})")
+        print(f"  - teleop_action: {teleop_action}")
+        print(f"  - TeleopEvents.IS_INTERVENTION: '{TeleopEvents.IS_INTERVENTION}'")
 
         new_transition = transition.copy()
 

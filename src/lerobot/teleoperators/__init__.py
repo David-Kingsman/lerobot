@@ -17,3 +17,6 @@
 from .config import TeleoperatorConfig
 from .teleoperator import Teleoperator
 from .utils import TeleopEvents, make_teleoperator_from_config
+
+# Import teleoperator configurations to register them
+from .spacemouse import SpacemouseTeleopConfig  # noqa: F401

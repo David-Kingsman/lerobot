@@ -12,7 +12,7 @@ from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
 from lerobot.motors.ufactory import XarmMotorBus
 from lerobot.robots.robot import Robot
-from lerobot.robots.utils import ensure_safe_goal_position
+from lerobot.robots.robot_utils import ensure_safe_goal_position
 from lerobot.robots.ufactory_lite6.config_ufactory_lite6 import UFactoryLite6Config
 
 

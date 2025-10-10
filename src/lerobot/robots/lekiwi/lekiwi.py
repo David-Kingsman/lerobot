@@ -31,7 +31,7 @@ from lerobot.motors.feetech import (
 )
 
 from ..robot import Robot
-from ..utils import ensure_safe_goal_position
+from ..robot_utils import ensure_safe_goal_position
 from .config_lekiwi import LeKiwiConfig
 
 logger = logging.getLogger(__name__)

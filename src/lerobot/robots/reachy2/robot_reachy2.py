@@ -23,7 +23,7 @@ from reachy2_sdk import ReachySDK
 from lerobot.cameras.utils import make_cameras_from_configs
 
 from ..robot import Robot
-from ..utils import ensure_safe_goal_position
+from ..robot_utils import ensure_safe_goal_position
 from .configuration_reachy2 import Reachy2RobotConfig
 
 # {lerobot_keys: reachy2_sdk_keys}

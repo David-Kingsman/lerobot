@@ -49,6 +49,7 @@ from lerobot.teleoperators import (  # noqa: F401
     koch_leader,
     make_teleoperator_from_config,
     so100_leader,
+    spacemouse,
 )
 from lerobot.utils.robot_utils import busy_wait
 

@@ -26,6 +26,8 @@ class SpacemouseTeleopConfig(TeleoperatorConfig):
     mock: bool = False
     device: str = "" # "e":SpacePilot Enterprise"  "p":SpaceMouse Pro"
     translation_scale: float = 0.01
-    rotation_scale: float = 0.1
-    deadzone: float = 0.6
-    yaw_scale: float = 3.0
+    rotation_scale: float = 0.08
+    deadzone: float = 0.1
+    yaw_scale: float = 8.0
+    gripper_penalty: float = -0.02
+    gripper_penalty_in_reward: bool = False

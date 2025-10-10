@@ -28,7 +28,7 @@ from lerobot.motors.feetech import (
 )
 
 from ..robot import Robot
-from ..utils import ensure_safe_goal_position
+from ..robot_utils import ensure_safe_goal_position
 from .config_so100_follower import SO100FollowerConfig
 
 logger = logging.getLogger(__name__)

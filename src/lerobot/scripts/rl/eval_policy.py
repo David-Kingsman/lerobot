@@ -30,6 +30,7 @@ from lerobot.scripts.rl.gym_manipulator import make_robot_env
 from lerobot.teleoperators import (
     gamepad,  # noqa: F401
     so101_leader,  # noqa: F401
+    spacemouse,
 )
 
 logging.basicConfig(level=logging.INFO)

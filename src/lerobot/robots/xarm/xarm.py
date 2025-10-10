@@ -30,74 +30,17 @@ from lerobot.cameras import make_cameras_from_configs
 from lerobot.errors import DeviceNotConnectedError, DeviceAlreadyConnectedError
 from lerobot.robots.robot import Robot
 
-from lerobot.robots.xarm.config_xarm import XarmEndEffectorConfig
+from lerobot.robots.xarm.config_xarm import Lite6Config
 
 logger = logging.getLogger(__name__)
 
 
-class Lite6Gripper:
-    def __init__(self, arm: XArmAPI):
-        self._arm = arm
-        self._prev_gripper_state = None
-        self._gripper_state = 0.0
-        self._gripper_open_time = 0.0
-        self._gripper_stopped = False
-
-    def open(self):
-        self._arm.open_lite6_gripper()
-
-    def close(self):
-        self._arm.close_lite6_gripper()
-
-    def stop(self):
-        self._arm.stop_lite6_gripper()
-
-    def set_gripper_state(self, gripper_state: float) -> None:
-        """Set gripper state and handle opening/closing logic."""
-        self._gripper_state = gripper_state
-
-        if self._gripper_state is not None:
-            if (
-                self._prev_gripper_state is None
-                or self._prev_gripper_state != self._gripper_state
-            ):
-                if self._gripper_state < 1.0:
-                    self._gripper_stopped = False
-                    self.close()
-                else:
-                    self._gripper_open_time = time.time()
-                    self._gripper_stopped = False
-                    self.open()
-
-            if (
-                not self._gripper_stopped
-                and self._gripper_state >= 1.0
-                and time.time() - self._gripper_open_time > 1.0
-            ):
-                # If gripper was closed and now is open, stop the gripper
-                self._gripper_stopped = True
-                self.stop()
-
-        self._prev_gripper_state = self._gripper_state
-
-    def get_gripper_state(self) -> float:
-        """Get current gripper state."""
-        return self._gripper_state
-
-    def reset_gripper(self) -> None:
-        """Reset gripper state."""
-        self._prev_gripper_state = None
-        self._gripper_state = 0.0
-        self._gripper_open_time = 0.0
-        self._gripper_stopped = False
-
-
 # pip install xarm-python-sdk
-class XarmEndEffector(Robot):
-    config_class = XarmEndEffectorConfig
-    name = "xarm_end_effector"
+class Lite6(Robot):
+    config_class = Lite6Config
+    name = "lite6"
 
-    def __init__(self, config: XarmEndEffectorConfig):
+    def __init__(self, config: Lite6Config):
         super().__init__(config)
         self.cameras = make_cameras_from_configs(config.cameras)
 
@@ -106,7 +49,6 @@ class XarmEndEffector(Robot):
         self.config = config
         self._is_connected = False
         self._arm = None
-        self._gripper = None
         self._jacobi = JacobiRobot(
             os.path.join(this_dir, "lite6.urdf"), ee_link="link_tool"
         )
@@ -125,14 +67,11 @@ class XarmEndEffector(Robot):
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
         # Connect to the robot and set it to a servo mode
-        self._arm = XArmAPI("192.168.1.193", is_radian=True)
+        self._arm = XArmAPI(self.config.ip, is_radian=True)
         self._arm.connect()
         self._arm.motion_enable(enable=True)
         self._arm.set_mode(1)  # Position mode
         self._arm.set_state(state=0)  # Sport state
-
-        # Initialize gripper
-        self._gripper = Lite6Gripper(self._arm)
 
         # set joint positions to jacobi, read from arm
         code, joint_positions = self._arm.get_servo_angle()
@@ -153,7 +92,6 @@ class XarmEndEffector(Robot):
     def _motors_ft(self) -> dict[str, type]:
         """Return mapping of motor feature names to their Python types (float)."""
         motors = {f"joint{i}.pos": float for i in range(1, 7)}
-        motors["gripper.pos"] = float
         return motors
 
     @property
@@ -166,7 +104,7 @@ class XarmEndEffector(Robot):
         Transform action from end-effector space to joint space and send to motors.
 
         Args:
-            action: Dictionary with keys 'pose', 'gripper', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6'.
+            action: Dictionary with keys 'pose', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6'.
 
         Returns:
             The joint-space action that was sent to the motors
@@ -287,12 +225,6 @@ class XarmEndEffector(Robot):
             for i in range(1, 7):
                 action[f"joint{i}.pos"] = self._jacobi.get_joint_position(f"joint{i}")
 
-        # Send gripper command
-        if "gripper.pos" in action or "gripper" in action:
-            gripper_pos = action.get("gripper.pos", action.get("gripper", 0.0))
-            self._gripper.set_gripper_state(gripper_pos)
-            action["gripper.pos"] = self._gripper.get_gripper_state()
-
         # Return the joint-space command dictionary so that the recorder can
         # store every value in the dataset.
         return action
@@ -312,8 +244,8 @@ class XarmEndEffector(Robot):
         obs_dict = {}
         for i, angle in enumerate(joint_angles[:6]):  # First 6 angles are joints
             obs_dict[f"joint{i+1}.pos"] = angle
-            obs_dict[f"joint{i+1}.effort"] = joint_efforts[i]
-        obs_dict["gripper.pos"] = self._gripper.get_gripper_state()
+            if self.config.save_effort:
+                obs_dict[f"joint{i+1}.effort"] = joint_efforts[i]
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
@@ -324,18 +256,10 @@ class XarmEndEffector(Robot):
 
         return obs_dict
 
-    def reset(self):
-        if self._gripper:
-            self._gripper.reset_gripper()
-
     def disconnect(self) -> None:
         """Disconnect from the robot and cameras."""
         if not self.is_connected:
             return
-
-        if self._gripper is not None:
-            self._gripper.stop()
-            self._gripper = None
 
         if self._arm is not None:
             self._arm.disconnect()
