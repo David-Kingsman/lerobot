@@ -454,11 +454,11 @@ class InterventionActionProcessorStep(ProcessorStep):
         rerecord_episode = info.get(TeleopEvents.RERECORD_EPISODE, False)
         
         # Debug: print what we received
-        print(f"🔍 INTERVENTION DEBUG:")
-        print(f"  - info keys: {list(info.keys())}")
-        print(f"  - is_intervention: {is_intervention} (type: {type(is_intervention)})")
-        print(f"  - teleop_action: {teleop_action}")
-        print(f"  - TeleopEvents.IS_INTERVENTION: '{TeleopEvents.IS_INTERVENTION}'")
+        # print(f"🔍 INTERVENTION DEBUG:")
+        # print(f"  - info keys: {list(info.keys())}")
+        # print(f"  - is_intervention: {is_intervention} (type: {type(is_intervention)})")
+        # print(f"  - teleop_action: {teleop_action}")
+        # print(f"  - TeleopEvents.IS_INTERVENTION: '{TeleopEvents.IS_INTERVENTION}'")
 
         new_transition = transition.copy()
 
