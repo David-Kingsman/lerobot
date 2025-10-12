@@ -65,14 +65,14 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .ufactory_lite6 import UFactoryLite6
 
         return UFactoryLite6(config)
-    elif config.type == "lite6":
-        from .xarm.xarm import Lite6
-
-        return Lite6(config)
     elif config.type == "xarm_end_effector":
-        from .xarm.xarm_end_effector import XarmEndEffector
+        from .xarm import XarmEndEffector
 
         return XarmEndEffector(config)
+    elif config.type == "webots_xarm_end_effector":
+        from .webots_xarm import WebotsXarmEndEffector
+
+        return WebotsXarmEndEffector(config)
 
     else:
         raise ValueError(config.type)
