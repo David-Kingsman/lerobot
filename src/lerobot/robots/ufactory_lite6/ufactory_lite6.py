@@ -77,7 +77,12 @@ class UFactoryLite6(Robot):
 
     @cached_property
     def action_features(self) -> dict[str, type]:
-        return self._motors_ft
+        # Support both position and velocity control
+        features = {}
+        for motor in self.bus.motors:
+            features[f"{motor}.pos"] = float  # Position control
+            features[f"{motor}.vel"] = float  # Velocity control
+        return features
 
     @property
     def is_connected(self) -> bool:
@@ -115,6 +120,25 @@ class UFactoryLite6(Robot):
         
         logger.info(f"Configuring {self}...")
         _ = self.bus.enable(follower=True, return_init_pos=True)
+        
+        # Set control mode based on configuration AFTER enable() call
+        # This ensures our mode setting is not overridden by enable()
+        if self.config.control_mode == "velocity":
+            logger.info("Setting robot to velocity control mode...")
+            self.bus.api.clean_error()
+            self.bus.api.set_mode(4)  # Velocity control mode
+            self.bus.api.set_state(0)
+            self.bus.current_mode = 4  # Update tracked mode
+            time.sleep(0.5)  # Give time for mode change
+            logger.info("✅ Velocity control mode set successfully")
+        else:
+            logger.info("Setting robot to position control mode...")
+            self.bus.api.clean_error()
+            self.bus.api.set_mode(1)  # Position control mode
+            self.bus.api.set_state(0)
+            self.bus.current_mode = 1  # Update tracked mode
+            time.sleep(0.5)  # Give time for mode change
+            logger.info("✅ Position control mode set successfully")
 
     def get_observation(self) -> dict[str, Any]:
         """The returned observations do not have a batch dimension."""
@@ -139,23 +163,50 @@ class UFactoryLite6(Robot):
 
         return obs_dict
     
-    def send_action(self, action: dict[str, float]) -> None:
+    def send_action(self, action: dict[str, float]) -> dict[str, float]:
         if not self.is_connected:
             raise DeviceNotConnectedError(
                 "ManipulatorRobot is not connected. You need to run `robot.connect()`."
             )
-        goal_pos = {key.removesuffix(".pos"): val for key, val in action.items() if key.endswith(".pos")}
+        
+        if self.config.control_mode == "velocity":
+            # Velocity control mode
+            if any(key.endswith(".pos") for key in action.keys()):
+                # Convert position to velocity for velocity control
+                goal_pos = {key.removesuffix(".pos"): val for key, val in action.items() if key.endswith(".pos")}
+                current_pos = self.bus.get_position()
+                velocity = {}
+                for motor, target_pos in goal_pos.items():
+                    current_angle = current_pos.get(motor, 0.0)
+                    # Calculate velocity with appropriate scaling for responsive control
+                    # Scale by control frequency to make movement more responsive
+                    vel = (target_pos - current_angle) * self.config.control_frequency * 0.1
+                    velocity[motor] = vel
+                self.bus.set_velocity(velocity)
+                return {f"{motor}.vel": val for motor, val in velocity.items()}
+            elif any(key.endswith(".vel") for key in action.keys()):
+                # Direct velocity control
+                velocity = {key.removesuffix(".vel"): val for key, val in action.items() if key.endswith(".vel")}
+                self.bus.set_velocity(velocity)
+                return {f"{motor}.vel": val for motor, val in velocity.items()}
+            else:
+                raise ValueError("Velocity control mode requires either '.pos' or '.vel' keys in action")
+        elif self.config.control_mode == "position":
+            # Position control mode (original behavior)
+            goal_pos = {key.removesuffix(".pos"): val for key, val in action.items() if key.endswith(".pos")}
+            
+            # Cap goal position when too far away from present position.
+            # /!\ Slower fps expected due to reading from the follower.
+            if self.config.max_relative_target is not None:
+                present_pos = self.bus.get_position()
+                goal_present_pos = {key: (g_pos, present_pos[key]) for key, g_pos in goal_pos.items()}
+                goal_pos = ensure_safe_goal_position(goal_present_pos, self.config.max_relative_target)
 
-        # Cap goal position when too far away from present position.
-        # /!\ Slower fps expected due to reading from the follower.
-        if self.config.max_relative_target is not None:
-            present_pos = self.bus.get_position()
-            goal_present_pos = {key: (g_pos, present_pos[key]) for key, g_pos in goal_pos.items()}
-            goal_pos = ensure_safe_goal_position(goal_present_pos, self.config.max_relative_target)
-
-        # Send goal position to the arm
-        self.bus.set_position(goal_pos)
-        return {f"{motor}.pos": val for motor, val in goal_pos.items()}
+            # Send goal position to the arm
+            self.bus.set_position(goal_pos)
+            return {f"{motor}.pos": val for motor, val in goal_pos.items()}
+        else:
+            raise ValueError(f"Unsupported control mode: {self.config.control_mode}")
     
     def get_ee_coordinates(self) -> dict[str, float]:
         if not self.is_connected:

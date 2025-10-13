@@ -45,6 +45,7 @@ class XarmMotorBus(MotorsBus):
         self.stop_event = threading.Event()
         self.replay_mode = False
         self.cartesian_mode = False
+        self.current_mode = None  # Track current control mode
 
         # Create and start the digital input monitoring thread
         print("Creating monitor thread")  # Debug print
@@ -129,7 +130,7 @@ class XarmMotorBus(MotorsBus):
             self.api.set_mode(0)
         self.api.set_state(state=0)
         
-        # Optional gripper setup (Lite6 无夹爪，直接跳过)
+        # Optional gripper setup (Lite6 no gripper, skip this)
         if self.motor_models and self.motor_models[-1] == "gripper":
             self.api.set_gripper_mode(0)
             self.api.set_gripper_enable(True)
@@ -181,10 +182,10 @@ class XarmMotorBus(MotorsBus):
             self.disconnect()
 
     def initialize_limits(self):
-        # heuristic: 1/3 of the max speed and acceleration limits
+        # heuristic: 2/3 of the max speed and acceleration limits for faster movement
         #  for testing purposes
-        self.MAX_SPEED_LIMIT = max(self.api.joint_speed_limit)/3
-        self.MAX_ACC_LIMIT = max(self.api.joint_acc_limit)/3
+        self.MAX_SPEED_LIMIT = max(self.api.joint_speed_limit) * 0.67  # 2/3 of max speed
+        self.MAX_ACC_LIMIT = max(self.api.joint_acc_limit) * 0.67      # 2/3 of max acceleration
 
     def get_position(self):
         # if self.motor_models[-1] == "gipper":
@@ -202,7 +203,7 @@ class XarmMotorBus(MotorsBus):
         code, angles = self.api.get_servo_angle()
         if code != 0:
             raise RuntimeError(f"Failed to get servo angles: {code}")
-        # 限制到已有电机数量
+        # limit to the number of motors
         angles = angles[: len(self.motor_names)]
         return {motor: angle for motor, angle in zip(self.motor_names, angles)}
         
@@ -282,15 +283,51 @@ class XarmMotorBus(MotorsBus):
         roll, pitch, yaw = position[3:]
         self.api.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, wait=False, speed=self.MAX_SPEED_LIMIT, acceleration=self.MAX_ACC_LIMIT)
     
+    def _set_mode_if_needed(self, target_mode: int):
+        """Set mode only if it's different from current mode to avoid warnings"""
+        if self.current_mode != target_mode:
+            self.api.clean_error()
+            self.api.set_mode(target_mode)
+            self.api.set_state(0)
+            self.current_mode = target_mode
+            time.sleep(0.1)  # Brief pause for mode change
+
+    # position control mode
     def set_position(self,position: np.ndarray):
         # only joint angles, no gripper
         # ensure in joint servo mode 
         angles = [position[name] for name in self.motor_names if name in position]
         # ensure in joint servo mode 
-        self.api.clean_error()
-        self.api.set_mode(1)
-        self.api.set_state(0)
-        self.api.set_servo_angle_j(angles=angles, is_radian=False, wait=False)
+        self._set_mode_if_needed(1)  # Position control mode
+        
+        # Initialize limits if not set
+        if self.MAX_SPEED_LIMIT is None or self.MAX_ACC_LIMIT is None:
+            self.initialize_limits()
+        
+        # Use set_servo_angle with speed and acceleration limits instead of set_servo_angle_j
+        self.api.set_servo_angle(angle=angles, is_radian=False, wait=False, 
+                                speed=self.MAX_SPEED_LIMIT, acceleration=self.MAX_ACC_LIMIT)
+    
+    # velocity control mode
+    def set_velocity(self, velocity: dict):
+        """
+        Set joint velocities for velocity control mode.
+        Args:
+            velocity: dict with motor names as keys and velocity values as values
+        """
+        # Convert velocity dict to list in correct order
+        velocities = [velocity.get(name, 0.0) for name in self.motor_names]
+
+        # Ensure we're in velocity control mode (mode 4 for joint velocity control)
+        # Use smart mode setting to avoid unnecessary mode changes
+        self._set_mode_if_needed(4)  # Velocity control mode
+
+        # Send velocity commands directly without excessive scaling
+        # Based on official example: arm.vc_set_joint_velocity([-50, 0, 0, 0, 0, 0])
+        # The API expects velocity values in degrees/second for each joint
+        code = self.api.vc_set_joint_velocity(velocities, is_radian=False, is_sync=False, duration=0)
+        if code != 0:
+            raise RuntimeError(f"Velocity control command failed with code: {code}")
         
     def set_gripper_pos(self, position: int):
         if self.motor_models[-1] == "gipper":
