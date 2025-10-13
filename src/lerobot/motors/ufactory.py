@@ -182,10 +182,10 @@ class XarmMotorBus(MotorsBus):
             self.disconnect()
 
     def initialize_limits(self):
-        # heuristic: 2/3 of the max speed and acceleration limits for faster movement
+        # heuristic: 1/3 of the max speed and acceleration limits
         #  for testing purposes
-        self.MAX_SPEED_LIMIT = max(self.api.joint_speed_limit) * 0.67  # 2/3 of max speed
-        self.MAX_ACC_LIMIT = max(self.api.joint_acc_limit) * 0.67      # 2/3 of max acceleration
+        self.MAX_SPEED_LIMIT = max(self.api.joint_speed_limit)/3
+        self.MAX_ACC_LIMIT = max(self.api.joint_acc_limit)/3
 
     def get_position(self):
         # if self.motor_models[-1] == "gipper":
@@ -299,14 +299,7 @@ class XarmMotorBus(MotorsBus):
         angles = [position[name] for name in self.motor_names if name in position]
         # ensure in joint servo mode 
         self._set_mode_if_needed(1)  # Position control mode
-        
-        # Initialize limits if not set
-        if self.MAX_SPEED_LIMIT is None or self.MAX_ACC_LIMIT is None:
-            self.initialize_limits()
-        
-        # Use set_servo_angle with speed and acceleration limits instead of set_servo_angle_j
-        self.api.set_servo_angle(angle=angles, is_radian=False, wait=False, 
-                                speed=self.MAX_SPEED_LIMIT, acceleration=self.MAX_ACC_LIMIT)
+        self.api.set_servo_angle_j(angles=angles, is_radian=False, wait=False)
     
     # velocity control mode
     def set_velocity(self, velocity: dict):
