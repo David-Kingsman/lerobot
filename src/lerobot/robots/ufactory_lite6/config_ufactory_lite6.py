@@ -64,7 +64,7 @@ class UFactoryLite6Config(RobotConfig):
 
 
     # Control parameters
-    control_frequency: float = 30.0  # Hz， ufactory lite6 control frequency
+    control_frequency: float = 10.0  # Hz， ufactory lite6 control frequency
     control_mode: str = "velocity"  # Default to position control, can be changed to "velocity"
     use_gripper: bool = False  # 6DOF version doesn't have gripper
     use_degrees: bool = True  # if true, the position is in degrees, otherwise in radians
