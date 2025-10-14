@@ -44,6 +44,8 @@ class UFactoryLite6(Robot):
                 "joint6": Motor(6, "ufactory_lite6-6", MotorNormMode.RANGE_0_100),
             },
         )
+        # Pass use_degrees configuration to motor bus
+        self.bus.use_degrees = config.use_degrees
         self.cameras = make_cameras_from_configs(config.cameras)
 
     @property
@@ -180,7 +182,7 @@ class UFactoryLite6(Robot):
                     current_angle = current_pos.get(motor, 0.0)
                     # Calculate velocity with appropriate scaling for responsive control
                     # Scale by control frequency to make movement more responsive
-                    vel = (target_pos - current_angle) * self.config.control_frequency * 0.1
+                    vel = (target_pos - current_angle) * self.config.control_frequency * 0.3
                     velocity[motor] = vel
                 self.bus.set_velocity(velocity)
                 return {f"{motor}.vel": val for motor, val in velocity.items()}
