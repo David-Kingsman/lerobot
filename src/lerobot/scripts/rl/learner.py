@@ -307,9 +307,13 @@ def add_actor_information_and_train(
 
     logging.info("Initializing policy")
 
+    # Load dataset to get proper normalization statistics
+    dataset = make_dataset(cfg)
+    dataset_meta = dataset.meta
+
     policy: SACPolicy = make_policy(
         cfg=cfg.policy,
-        env_cfg=cfg.env,
+        ds_meta=dataset_meta,
     )
 
     assert isinstance(policy, nn.Module)

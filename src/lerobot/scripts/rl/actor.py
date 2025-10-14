@@ -252,9 +252,15 @@ def act_with_policy(
     ### Instantiate the policy in both the actor and learner processes
     ### To avoid sending a SACPolicy object through the port, we create a policy instance
     ### on both sides, the learner sends the updated parameters every n steps to update the actor's parameters
+    
+    # Load dataset to get proper normalization statistics
+    from lerobot.datasets.factory import make_dataset
+    dataset = make_dataset(cfg)
+    dataset_meta = dataset.meta
+    
     policy: SACPolicy = make_policy(
         cfg=cfg.policy,
-        env_cfg=cfg.env,
+        ds_meta=dataset_meta,
     )
     policy = policy.eval()
     assert isinstance(policy, nn.Module)
