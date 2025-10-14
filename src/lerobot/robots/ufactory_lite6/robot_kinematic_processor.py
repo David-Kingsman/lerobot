@@ -155,7 +155,7 @@ class EEReferenceAndDelta(RobotActionProcessorStep):
 @dataclass
 class EEBoundsAndSafety(RobotActionProcessorStep):
     end_effector_bounds: dict
-    max_ee_step_m: float = 0.05
+    max_ee_step_m: float = 0.1
     max_ee_twist_step_rad: float = 0.20
     _last_pos: np.ndarray | None = field(default=None, init=False, repr=False)
     _last_twist: np.ndarray | None = field(default=None, init=False, repr=False)
